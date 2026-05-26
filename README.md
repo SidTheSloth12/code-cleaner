@@ -1,4 +1,4 @@
-# 🧹 Code Cleaner
+# Code Cleaner
 
 A lightweight, zero-dependency, single-file web utility designed to format, clean, and compress source code. Built entirely with native web technologies, it runs entirely client-side in the browser to ensure data privacy and instant processing.
 
