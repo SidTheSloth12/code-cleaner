@@ -1,152 +1,397 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Cleaner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: var(--font-mono, monospace); background: transparent; color: var(--color-text-primary); }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  .app { display: flex; flex-direction: column; gap: 0; min-height: 600px; }
-
-  .toolbar {
-    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-    border-bottom: 0.5px solid var(--color-border-tertiary);
-    flex-wrap: wrap;
+  :root {
+    --bg:       #0d0f11;
+    --surface:  #13161a;
+    --raised:   #1a1e24;
+    --border:   #252b33;
+    --border2:  #2e3740;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --dim:      #3d4852;
+    --accent:   #38bdf8;
+    --accent-d: #0ea5e9;
+    --green:    #4ade80;
+    --amber:    #fbbf24;
+    --red:      #f87171;
+    --mono:     'JetBrains Mono', monospace;
+    --sans:     'Syne', sans-serif;
   }
 
-  .toolbar-label {
-    font-size: 11px; color: var(--color-text
-    -secondary); font-family: var(--font-sans); letter-spacing: 0.05em; text-transform: uppercase;
-    white-space: nowrap;
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
   }
 
-  .level-tabs { display: flex; gap: 2px; }
-  .level-tab {
-    font-family: var(--font-sans); font-size: 12px; padding: 4px 10px;
-    border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md);
-    background: transparent; color: var(--color-text-secondary); cursor: pointer;
-    transition: all 0.15s; white-space: nowrap;
-  }
-  .level-tab:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
-  .level-tab.active { background: var(--color-text-primary); color: var(--color-background-primary); border-color: var(--color-text-primary); }
-
-  .divider { width: 0.5px; height: 20px; background: var(--color-border-tertiary); margin: 0 4px; }
-
-  .toggle-group { display: flex; gap: 6px; align-items: center; }
-  .toggle-btn {
-    font-family: var(--font-sans); font-size: 12px; padding: 4px 10px;
-    border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md);
-    background: transparent; color: var(--color-text-secondary); cursor: pointer;
-    transition: all 0.15s; white-space: nowrap;
-  }
-  .toggle-btn.on { background: var(--color-background-secondary); color: var(--color-text-primary); border-color: var(--color-border-primary); }
-  .toggle-btn:hover { border-color: var(--color-border-primary); color: var(--color-text-primary); }
-
-  .panels { display: grid; grid-template-columns: 1fr 1fr; flex: 1; }
-
-  .panel { display: flex; flex-direction: column; }
-  .panel-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 7px 12px; border-bottom: 0.5px solid var(--color-border-tertiary);
-    background: var(--color-background-secondary);
-  }
-  .panel-header-left { display: flex; align-items: center; gap: 8px; }
-  .panel-title { font-family: var(--font-sans); font-size: 11px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
-
-  .lang-badge {
-    font-size: 10px; font-family: var(--font-sans); padding: 2px 7px;
-    border-radius: 999px; border: 0.5px solid var(--color-border-secondary);
-    color: var(--color-text-secondary); background: var(--color-background-primary);
+  /* ─── Header ─────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    gap: 16px;
   }
 
-  .stats-row {
-    display: flex; gap: 10px;
+  .logo {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
   }
-  .stat { font-family: var(--font-sans); font-size: 11px; color: var(--color-text-secondary); }
-  .stat span { color: var(--color-text-primary); font-weight: 500; }
-
-  .code-area {
-    flex: 1; width: 100%; resize: none; padding: 12px;
-    font-family: var(--font-mono, monospace); font-size: 12.5px; line-height: 1.65;
-    background: var(--color-background-primary); color: var(--color-text-primary);
-    border: none; outline: none;
-    border-right: 0.5px solid var(--color-border-tertiary);
-    min-height: 420px;
-  }
-  .code-area.output { background: var(--color-background-secondary); cursor: default; }
-
-  .action-bar {
-    display: flex; gap: 8px; padding: 8px 12px;
-    border-top: 0.5px solid var(--color-border-tertiary);
-    background: var(--color-background-secondary);
-    align-items: center; justify-content: space-between;
-  }
-  .action-btn {
-    font-family: var(--font-sans); font-size: 12px; padding: 5px 14px;
-    border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md);
-    background: var(--color-background-primary); color: var(--color-text-primary);
-    cursor: pointer; transition: all 0.15s;
-  }
-  .action-btn:hover { background: var(--color-background-secondary); border-color: var(--color-border-primary); }
-  .action-btn.primary {
-    background: var(--color-text-primary); color: var(--color-background-primary);
-    border-color: var(--color-text-primary);
-  }
-  .action-btn.primary:hover { opacity: 0.85; }
-
-  .reduction-badge {
-    font-family: var(--font-sans); font-size: 11px; color: var(--color-text-secondary);
-  }
-  .reduction-badge span { color: var(--color-text-primary); font-weight: 500; }
-
-  .placeholder {
-    font-family: var(--font-sans); font-size: 13px; color: var(--color-text-secondary);
-    padding: 40px 20px; text-align: center; line-height: 1.8;
+  .logo-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
   }
 
-  .level-desc {
-    font-family: var(--font-sans); font-size: 11px; color: var(--color-text-secondary);
-    padding: 5px 12px; border-bottom: 0.5px solid var(--color-border-tertiary);
-    background: var(--color-background-secondary); font-style: italic;
-    display: flex; align-items: center; gap: 6px;
+  .header-center {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
   }
 
-  select.lang-select {
-    font-family: var(--font-sans); font-size: 11px; padding: 2px 6px;
-    border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md);
-    background: var(--color-background-primary); color: var(--color-text-secondary);
-    cursor: pointer; outline: none;
+  .level-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    letter-spacing: 0.04em;
   }
+  .level-btn:hover { border-color: var(--dim); color: var(--text); }
+  .level-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0d0f11;
+    font-weight: 600;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  select {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--raised);
+    color: var(--muted);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 5px 10px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    padding-right: 24px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  select:hover { border-color: var(--dim); color: var(--text); }
+  select:focus { border-color: var(--accent); color: var(--text); }
+  select option { background: #1a1e24; }
+
+  /* ─── Options bar ─────────────────────────── */
+  .options-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 24px;
+    height: 42px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .opt-label {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-right: 4px;
+  }
+
+  .toggle-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .toggle-pill:hover { border-color: var(--dim); color: var(--text); }
+  .toggle-pill.on { color: var(--text); border-color: var(--border2); }
+  .toggle-pill .pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .toggle-pill.on .pip { background: var(--green); }
+
+  .sep { width: 1px; height: 16px; background: var(--border); margin: 0 6px; }
+
+  .level-desc-bar {
+    padding: 0 24px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    background: #0f1217;
+    flex-shrink: 0;
+  }
+  .level-desc-bar .arrow { color: var(--accent); font-size: 11px; }
+  .level-desc-bar span {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+  }
+
+  /* ─── Editor area ─────────────────────────── */
+  .editors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .pane {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+  }
+  .pane:last-child { border-right: none; }
+
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    height: 38px;
+  }
+  .pane-header-left { display: flex; align-items: center; gap: 10px; }
+
+  .pane-title {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--dim);
+  }
+
+  .lang-tag {
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    color: var(--accent);
+    background: rgba(56,189,248,0.07);
+    letter-spacing: 0.03em;
+  }
+
+  .pane-stats {
+    display: flex;
+    gap: 12px;
+  }
+  .pane-stat {
+    font-size: 10px;
+    color: var(--dim);
+  }
+  .pane-stat strong {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  textarea {
+    flex: 1;
+    width: 100%;
+    resize: none;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 16px 20px;
+    border: none;
+    outline: none;
+    tab-size: 2;
+    overflow-y: auto;
+  }
+  textarea::placeholder { color: var(--dim); }
+  textarea.output-area {
+    background: #0b0d10;
+    color: #a0b4c8;
+  }
+
+  textarea::-webkit-scrollbar { width: 6px; }
+  textarea::-webkit-scrollbar-track { background: transparent; }
+  textarea::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  textarea::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+  /* ─── Footer ─────────────────────────────── */
+  footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 46px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .footer-left { display: flex; align-items: center; gap: 12px; }
+  .footer-right { display: flex; align-items: center; gap: 8px; }
+
+  .reduction-chip {
+    font-size: 11px;
+    color: var(--green);
+    background: rgba(74,222,128,0.08);
+    border: 1px solid rgba(74,222,128,0.2);
+    padding: 3px 10px;
+    border-radius: 999px;
+    display: none;
+  }
+  .reduction-chip.show { display: block; }
+
+  .status-msg {
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 18px;
+    border-radius: 7px;
+    border: 1px solid var(--border2);
+    background: var(--raised);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    letter-spacing: 0.02em;
+  }
+  .btn:hover { border-color: var(--dim); color: var(--text); }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0d0f11;
+    font-weight: 600;
+  }
+  .btn.primary:hover { background: var(--accent-d); border-color: var(--accent-d); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-icon {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-icon:hover { border-color: var(--border2); color: var(--muted); }
+
+  /* ─── Copy flash ─────────────────────────── */
+  .copy-flash {
+    position: fixed;
+    bottom: 60px;
+    right: 24px;
+    background: var(--green);
+    color: #0d0f11;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 8px;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: all 0.2s ease;
+    pointer-events: none;
+  }
+  .copy-flash.show { opacity: 1; transform: translateY(0); }
 </style>
 </head>
 <body>
-<div class="app">
 
-  <div class="toolbar">
-    <span class="toolbar-label">Level</span>
-    <div class="level-tabs" id="levelTabs">
-      <button class="level-tab active" data-level="0">readable</button>
-      <button class="level-tab" data-level="1">compact</button>
-      <button class="level-tab" data-level="2">minified</button>
-      <button class="level-tab" data-level="3">nuclear</button>
-    </div>
-    <div class="divider"></div>
-    <span class="toolbar-label">Options</span>
-    <div class="toggle-group">
-      <button class="toggle-btn on" id="toggleComments">comments</button>
-      <button class="toggle-btn on" id="toggleIndent">indentation</button>
-      <button class="toggle-btn on" id="toggleBlankLines">blank lines</button>
-      <button class="toggle-btn on" id="toggleOperators">operator spacing</button>
-    </div>
-    <div class="divider"></div>
-    <select class="lang-select" id="langOverride">
+<!-- ─── Header ───────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <span class="logo-dot"></span>
+    code cleaner
+  </div>
+
+  <div class="header-center">
+    <button class="level-btn active" data-level="0">readable</button>
+    <button class="level-btn" data-level="1">compact</button>
+    <button class="level-btn" data-level="2">minified</button>
+    <button class="level-btn" data-level="3">nuclear</button>
+  </div>
+
+  <div class="header-right">
+    <select id="langOverride">
       <option value="auto">auto-detect</option>
       <option value="js">javascript</option>
       <option value="python">python</option>
       <option value="css">css</option>
       <option value="html">html</option>
       <option value="java">java</option>
-      <option value="c">c/c++</option>
+      <option value="c">c / c++</option>
       <option value="rust">rust</option>
       <option value="go">go</option>
       <option value="ruby">ruby</option>
@@ -154,189 +399,183 @@
       <option value="swift">swift</option>
     </select>
   </div>
+</header>
 
-  <div id="levelDesc" class="level-desc">
-    <i class="ti ti-sparkles" aria-hidden="true" style="font-size:13px"></i>
-    <span id="levelDescText">Removes empty lines and extra operator spacing — keeps comments and indentation.</span>
+<!-- ─── Options bar ───────────────────────────────────── -->
+<div class="options-bar">
+  <span class="opt-label">keep</span>
+  <div class="toggle-pill on" id="toggleComments">
+    <span class="pip"></span>comments
   </div>
-
-  <div class="panels">
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-header-left">
-          <span class="panel-title">input</span>
-          <span class="lang-badge" id="detectedLang">paste code</span>
-        </div>
-        <div class="stats-row">
-          <span class="stat">lines: <span id="inLines">0</span></span>
-          <span class="stat">chars: <span id="inChars">0</span></span>
-        </div>
-      </div>
-      <textarea class="code-area" id="inputCode" placeholder="Paste your code here..." spellcheck="false"></textarea>
-      <div class="action-bar">
-        <button class="action-btn" onclick="document.getElementById('inputCode').value=''; updateAll();">clear</button>
-        <button class="action-btn primary" onclick="runClean()">clean →</button>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-header-left">
-          <span class="panel-title">output</span>
-        </div>
-        <div class="stats-row">
-          <span class="stat">lines: <span id="outLines">—</span></span>
-          <span class="stat">chars: <span id="outChars">—</span></span>
-        </div>
-      </div>
-      <textarea class="code-area output" id="outputCode" placeholder="Cleaned code will appear here..." readonly spellcheck="false"></textarea>
-      <div class="action-bar">
-        <span class="reduction-badge" id="reductionBadge"></span>
-        <button class="action-btn" onclick="copyOutput()">copy</button>
-      </div>
-    </div>
+  <div class="toggle-pill on" id="toggleIndent">
+    <span class="pip"></span>indentation
+  </div>
+  <div class="sep"></div>
+  <span class="opt-label">remove</span>
+  <div class="toggle-pill on" id="toggleBlankLines">
+    <span class="pip"></span>blank lines
+  </div>
+  <div class="toggle-pill on" id="toggleOperators">
+    <span class="pip"></span>fix spacing
   </div>
 </div>
+
+<!-- ─── Level description ─────────────────────────────── -->
+<div class="level-desc-bar">
+  <span class="arrow">›</span>
+  <span id="levelDescText">Removes blank lines and normalises operator spacing — keeps comments and indentation intact.</span>
+</div>
+
+<!-- ─── Editor panels ─────────────────────────────────── -->
+<div class="editors">
+  <div class="pane">
+    <div class="pane-header">
+      <div class="pane-header-left">
+        <span class="pane-title">input</span>
+        <span class="lang-tag" id="detectedLang">—</span>
+      </div>
+      <div class="pane-stats">
+        <span class="pane-stat"><strong id="inLines">0</strong> lines</span>
+        <span class="pane-stat"><strong id="inChars">0</strong> chars</span>
+      </div>
+    </div>
+    <textarea id="inputCode" placeholder="Paste your code here…" spellcheck="false" autocomplete="off"></textarea>
+  </div>
+
+  <div class="pane">
+    <div class="pane-header">
+      <div class="pane-header-left">
+        <span class="pane-title">output</span>
+      </div>
+      <div class="pane-stats">
+        <span class="pane-stat"><strong id="outLines">—</strong> lines</span>
+        <span class="pane-stat"><strong id="outChars">—</strong> chars</span>
+      </div>
+    </div>
+    <textarea id="outputCode" class="output-area" placeholder="Cleaned code will appear here…" readonly spellcheck="false"></textarea>
+  </div>
+</div>
+
+<!-- ─── Footer ───────────────────────────────────────── -->
+<footer>
+  <div class="footer-left">
+    <div class="reduction-chip" id="reductionChip"></div>
+    <span class="status-msg" id="statusMsg">paste code to get started</span>
+  </div>
+  <div class="footer-right">
+    <button class="btn-icon" onclick="clearAll()">clear</button>
+    <button class="btn" onclick="copyOutput()">copy output</button>
+    <button class="btn primary" onclick="runClean()">clean →</button>
+  </div>
+</footer>
+
+<div class="copy-flash" id="copyFlash">copied!</div>
 
 <script>
 const LEVELS = [
   {
-    name: "readable",
-    desc: "Removes empty lines and extra operator spacing — keeps comments and indentation.",
+    desc: "Removes blank lines and normalises operator spacing — keeps comments and indentation intact.",
     removeComments: false, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false
   },
   {
-    name: "compact",
-    desc: "Removes empty lines, comments, and normalizes spacing. Keeps indentation for readability.",
+    desc: "Strips comments and blank lines, normalises spacing. Indentation is preserved — still readable.",
     removeComments: true, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false
   },
   {
-    name: "minified",
-    desc: "Strips comments, blank lines, and indentation. Collapses to minimal whitespace.",
+    desc: "Removes comments, blank lines and indentation entirely. Minimal whitespace, not easily readable.",
     removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: false
   },
   {
-    name: "nuclear",
-    desc: "Removes absolutely everything — no spaces, no newlines, no comments. Unreadably dense.",
+    desc: "Nuclear option — everything goes. One dense line, no spaces, no structure. Unreadably small.",
     removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: true
   }
 ];
 
-let currentLevel = 0;
-let options = { removeComments: false, removeIndent: true, removeBlankLines: true, fixOperators: true };
+const LANG_NAMES = {
+  python:'python', js:'javascript', css:'css', html:'html',
+  java:'java', c:'c/c++', rust:'rust', go:'go',
+  ruby:'ruby', php:'php', swift:'swift', text:'text'
+};
 
+let currentLevel = 0;
+let userOpts = { removeComments: false, removeIndent: false, removeBlankLines: true, fixOperators: true };
+
+// ── Language detection ─────────────────────────────────
 function detectLang(code) {
   if (!code.trim()) return null;
-  const scores = {
-    python: 0, js: 0, css: 0, html: 0, java: 0, c: 0, rust: 0, go: 0, ruby: 0, php: 0, swift: 0
-  };
-  if (/def\s+\w+\s*\(|import\s+\w+|from\s+\w+\s+import|print\s*\(|:\s*$|^\s*#\s*\w/m.test(code)) scores.python += 3;
-  if (/elif\s+|lambda\s+|__name__|\.format\(|f['"]/.test(code)) scores.python += 2;
-  if (/function\s+\w+|const\s+|let\s+|var\s+|=>\s*{|require\(|module\.exports|console\.log/.test(code)) scores.js += 3;
-  if (/document\.|window\.|async\s+function|\.then\(|Promise\./.test(code)) scores.js += 2;
-  if (/\{[\s\S]*:\s*[\w#"']+;|@media|@keyframes|\.[\w-]+\s*\{|#[\w-]+\s*\{/.test(code)) scores.css += 4;
-  if (/<html|<div|<span|<body|<head|<!DOCTYPE/.test(code)) scores.html += 4;
-  if (/public\s+(static\s+)?(?:void|class|int|String)|System\.out|import\s+java\./.test(code)) scores.java += 4;
-  if (/#include\s+<|printf\s*\(|int\s+main\s*\(|std::/.test(code)) scores.c += 4;
-  if (/fn\s+\w+|let\s+mut|impl\s+\w+|use\s+std::|println!/.test(code)) scores.rust += 4;
-  if (/func\s+\w+.*{|package\s+main|fmt\.Println|:=\s/.test(code)) scores.go += 4;
-  if (/def\s+\w+|puts\s+|end\s*$|\.each\s*\{|attr_accessor/.test(code)) scores.ruby += 3;
-  if (/<\?php|echo\s+|function\s+\w+|\$\w+\s*=/.test(code)) scores.php += 4;
-  if (/var\s+\w+:|let\s+\w+:|func\s+\w+.*->|UIViewController|print\(/.test(code)) scores.swift += 4;
-  let best = null, bestScore = 0;
-  for (const [lang, score] of Object.entries(scores)) {
-    if (score > bestScore) { bestScore = score; best = lang; }
-  }
-  return bestScore > 0 ? best : 'text';
+  const s = {python:0,js:0,css:0,html:0,java:0,c:0,rust:0,go:0,ruby:0,php:0,swift:0};
+  if (/def\s+\w+\s*\(|import\s+\w+|from\s+\w+\s+import|print\s*\(|:\s*$|^\s*#\s*\w/m.test(code)) s.python+=3;
+  if (/elif\s+|lambda\s+|__name__|\.format\(|f['"]/.test(code)) s.python+=2;
+  if (/function\s+\w+|const\s+|let\s+|var\s+|=>\s*{|require\(|module\.exports|console\.log/.test(code)) s.js+=3;
+  if (/document\.|window\.|async\s+function|\.then\(|Promise\./.test(code)) s.js+=2;
+  if (/\{[\s\S]*?:\s*[\w#"'.]+\s*;|@media|@keyframes|\.[\w-]+\s*\{/.test(code)) s.css+=4;
+  if (/<html|<div|<span|<body|<head|<!DOCTYPE/i.test(code)) s.html+=4;
+  if (/public\s+(static\s+)?(?:void|class|int|String)|System\.out|import\s+java\./.test(code)) s.java+=4;
+  if (/#include\s+<|printf\s*\(|int\s+main\s*\(|std::/.test(code)) s.c+=4;
+  if (/fn\s+\w+|let\s+mut\s|impl\s+\w+|use\s+std::|println!/.test(code)) s.rust+=4;
+  if (/func\s+\w+.*{|package\s+main|fmt\.Println|:=\s/.test(code)) s.go+=4;
+  if (/def\s+\w+|puts\s+|^\s*end\s*$|\.each\s*\{|attr_accessor/m.test(code)) s.ruby+=3;
+  if (/<\?php|echo\s+|function\s+\w+\s*\(|\$\w+\s*=/.test(code)) s.php+=4;
+  if (/var\s+\w+:|let\s+\w+:|func\s+\w+.*->|UIViewController|print\(/.test(code)) s.swift+=4;
+  let best=null, top=0;
+  for (const [l,v] of Object.entries(s)) if (v>top) { top=v; best=l; }
+  return top>0 ? best : 'text';
 }
 
-const LANG_NAMES = { python:'python', js:'javascript', css:'css', html:'html', java:'java', c:'c/c++', rust:'rust', go:'go', ruby:'ruby', php:'php', swift:'swift', text:'text' };
-
-function stripLineComments(code, lang) {
-  if (lang === 'python' || lang === 'ruby') return code.replace(/(?<!['"#])#[^\n]*/g, '');
-  if (lang === 'html') return code.replace(/<!--[\s\S]*?-->/g, '');
-  if (lang === 'css') return code.replace(/\/\*[\s\S]*?\*\//g, '');
-  return code.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+// ── Cleaning logic ─────────────────────────────────────
+function stripComments(code, lang) {
+  if (lang==='python'||lang==='ruby') return code.replace(/(?<!['"#])#[^\n]*/g,'');
+  if (lang==='html') return code.replace(/<!--[\s\S]*?-->/g,'');
+  if (lang==='css') return code.replace(/\/\*[\s\S]*?\*\//g,'');
+  return code.replace(/\/\/[^\n]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'');
 }
 
-function fixOperatorSpacing(code, lang) {
-  if (lang === 'html' || lang === 'css') return code;
+function fixOps(code, lang) {
+  if (lang==='html'||lang==='css') return code;
   return code
-    .replace(/([^=!<>])=([^>=])/g, '$1 = $2')
-    .replace(/([^<])([+\-*\/%&|^])([^=\-+>\/\*])/g, (m, a, op, b) => a + ' ' + op + ' ' + b)
-    .replace(/,([^\s\n])/g, ', $1')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/([^\s])\s*\(\s*/g, '$1(')
-    .replace(/\s+\)/g, ')');
+    .replace(/([^=!<>])=([^>=])/g,'$1 = $2')
+    .replace(/,([^\s\n])/g,', $1')
+    .replace(/[ \t]+/g,' ');
 }
 
-function cleanCode(code, level, opts, lang) {
-  let lines = code.split('\n');
-  const effectiveOpts = {
-    removeComments: level.removeComments || opts.removeComments,
-    removeIndent: level.removeIndent || opts.removeIndent,
-    removeBlankLines: level.removeBlankLines || opts.removeBlankLines,
-    fixOperators: level.fixOperators || opts.fixOperators,
-    collapseAll: level.collapseAll
+function cleanCode(code, level, lang) {
+  const opts = {
+    removeComments: level.removeComments || userOpts.removeComments,
+    removeIndent:   level.removeIndent   || userOpts.removeIndent,
+    removeBlankLines: level.removeBlankLines || userOpts.removeBlankLines,
+    fixOperators:   level.fixOperators   || userOpts.fixOperators,
+    collapseAll:    level.collapseAll
   };
 
   let result = code;
+  if (opts.removeComments) result = stripComments(result, lang);
 
-  if (effectiveOpts.removeComments) {
-    result = stripLineComments(result, lang);
-  }
-
-  lines = result.split('\n');
-
-  lines = lines.map(line => {
-    let l = line;
-    if (effectiveOpts.removeIndent) {
-      l = l.trimStart();
-    }
-    l = l.trimEnd();
-    return l;
+  let lines = result.split('\n');
+  lines = lines.map(l => {
+    let s = opts.removeIndent ? l.trimStart() : l;
+    return s.trimEnd();
   });
+  if (opts.removeBlankLines) lines = lines.filter(l => l.trim() !== '');
+  if (opts.fixOperators) lines = lines.map(l => fixOps(l, lang));
 
-  if (effectiveOpts.removeBlankLines) {
-    lines = lines.filter(l => l.trim() !== '');
-  }
-
-  if (effectiveOpts.fixOperators) {
-    lines = lines.map(l => fixOperatorSpacing(l, lang));
-  }
-
-  result = lines.join(effectiveOpts.collapseAll ? ' ' : '\n');
-
-  if (effectiveOpts.collapseAll) {
-    result = result.replace(/\s+/g, ' ').trim();
-  }
-
+  result = lines.join(opts.collapseAll ? ' ' : '\n');
+  if (opts.collapseAll) result = result.replace(/\s+/g,' ').trim();
   return result;
 }
 
+// ── UI helpers ─────────────────────────────────────────
 function getLang() {
-  const override = document.getElementById('langOverride').value;
-  if (override !== 'auto') return override;
-  const code = document.getElementById('inputCode').value;
-  return detectLang(code) || 'text';
+  const ov = document.getElementById('langOverride').value;
+  if (ov !== 'auto') return ov;
+  return detectLang(document.getElementById('inputCode').value) || 'text';
 }
 
-function updateAll() {
+function updateInputStats() {
   const code = document.getElementById('inputCode').value;
+  document.getElementById('inLines').textContent = code ? code.split('\n').length : 0;
+  document.getElementById('inChars').textContent = code.length;
   const lang = getLang();
-  const langName = LANG_NAMES[lang] || lang;
-  document.getElementById('detectedLang').textContent = langName;
-  const lines = code.split('\n').length;
-  const chars = code.length;
-  document.getElementById('inLines').textContent = lines;
-  document.getElementById('inChars').textContent = chars;
-  if (code.trim()) runClean();
-  else {
-    document.getElementById('outputCode').value = '';
-    document.getElementById('outLines').textContent = '—';
-    document.getElementById('outChars').textContent = '—';
-    document.getElementById('reductionBadge').innerHTML = '';
-  }
+  document.getElementById('detectedLang').textContent = LANG_NAMES[lang] || lang;
 }
 
 function runClean() {
@@ -344,66 +583,104 @@ function runClean() {
   if (!code.trim()) return;
   const lang = getLang();
   const level = LEVELS[currentLevel];
-  const cleaned = cleanCode(code, level, options, lang);
+  const cleaned = cleanCode(code, level, lang);
   document.getElementById('outputCode').value = cleaned;
-  const outLines = cleaned.split('\n').length;
-  const outChars = cleaned.length;
-  document.getElementById('outLines').textContent = outLines;
-  document.getElementById('outChars').textContent = outChars;
-  const inChars = code.length;
-  if (inChars > 0) {
-    const reduction = Math.round((1 - outChars / inChars) * 100);
-    document.getElementById('reductionBadge').innerHTML = `<span>${reduction}%</span> smaller`;
+  const ol = cleaned.split('\n').length;
+  const oc = cleaned.length;
+  document.getElementById('outLines').textContent = ol;
+  document.getElementById('outChars').textContent = oc;
+  const ic = code.length;
+  if (ic > 0) {
+    const pct = Math.round((1 - oc/ic)*100);
+    const chip = document.getElementById('reductionChip');
+    chip.textContent = `↓ ${pct}% smaller`;
+    chip.classList.add('show');
+    document.getElementById('statusMsg').textContent = `cleaned with level: ${['readable','compact','minified','nuclear'][currentLevel]}`;
   }
+}
+
+function clearAll() {
+  document.getElementById('inputCode').value = '';
+  document.getElementById('outputCode').value = '';
+  document.getElementById('inLines').textContent = '0';
+  document.getElementById('inChars').textContent = '0';
+  document.getElementById('outLines').textContent = '—';
+  document.getElementById('outChars').textContent = '—';
+  document.getElementById('reductionChip').classList.remove('show');
+  document.getElementById('statusMsg').textContent = 'paste code to get started';
+  document.getElementById('detectedLang').textContent = '—';
 }
 
 function copyOutput() {
   const out = document.getElementById('outputCode').value;
   if (!out) return;
-  navigator.clipboard.writeText(out).catch(() => {});
+  navigator.clipboard.writeText(out).then(() => {
+    const f = document.getElementById('copyFlash');
+    f.classList.add('show');
+    setTimeout(() => f.classList.remove('show'), 1800);
+  });
 }
 
-document.querySelectorAll('.level-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.level-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    currentLevel = parseInt(tab.dataset.level);
+// ── Level tabs ─────────────────────────────────────────
+document.querySelectorAll('.level-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentLevel = parseInt(btn.dataset.level);
     document.getElementById('levelDescText').textContent = LEVELS[currentLevel].desc;
     syncTogglesFromLevel();
-    runClean();
+    if (document.getElementById('inputCode').value.trim()) runClean();
   });
 });
 
 function syncTogglesFromLevel() {
   const l = LEVELS[currentLevel];
   setToggle('toggleComments', !l.removeComments);
-  setToggle('toggleIndent', !l.removeIndent);
+  setToggle('toggleIndent',   !l.removeIndent);
   setToggle('toggleBlankLines', l.removeBlankLines);
-  setToggle('toggleOperators', l.fixOperators);
+  setToggle('toggleOperators',  l.fixOperators);
 }
 
+// ── Toggle pills ───────────────────────────────────────
 function setToggle(id, on) {
   const el = document.getElementById(id);
-  if (on) el.classList.add('on'); else el.classList.remove('on');
+  on ? el.classList.add('on') : el.classList.remove('on');
 }
 
 function wireToggle(id, optKey, invert) {
-  const el = document.getElementById(id);
-  el.addEventListener('click', () => {
+  document.getElementById(id).addEventListener('click', () => {
+    const el = document.getElementById(id);
     el.classList.toggle('on');
     const isOn = el.classList.contains('on');
-    options[optKey] = invert ? !isOn : isOn;
-    runClean();
+    userOpts[optKey] = invert ? !isOn : isOn;
+    if (document.getElementById('inputCode').value.trim()) runClean();
   });
 }
+wireToggle('toggleComments',  'removeComments', true);
+wireToggle('toggleIndent',    'removeIndent',   true);
+wireToggle('toggleBlankLines','removeBlankLines', false);
+wireToggle('toggleOperators', 'fixOperators',   false);
 
-wireToggle('toggleComments', 'removeComments', true);
-wireToggle('toggleIndent', 'removeIndent', true);
-wireToggle('toggleBlankLines', 'removeBlankLines', false);
-wireToggle('toggleOperators', 'fixOperators', false);
+// ── Input listener ─────────────────────────────────────
+document.getElementById('inputCode').addEventListener('input', () => {
+  updateInputStats();
+  if (document.getElementById('inputCode').value.trim()) runClean();
+});
+document.getElementById('langOverride').addEventListener('change', () => {
+  updateInputStats();
+  if (document.getElementById('inputCode').value.trim()) runClean();
+});
 
-document.getElementById('inputCode').addEventListener('input', updateAll);
-document.getElementById('langOverride').addEventListener('change', updateAll);
+// Tab key in textarea
+document.getElementById('inputCode').addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const ta = e.target;
+    const s = ta.selectionStart, end = ta.selectionEnd;
+    ta.value = ta.value.substring(0,s) + '  ' + ta.value.substring(end);
+    ta.selectionStart = ta.selectionEnd = s + 2;
+  }
+});
 </script>
 </body>
 </html>
