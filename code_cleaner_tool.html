@@ -387,16 +387,25 @@
     <select id="langOverride">
       <option value="auto">auto-detect</option>
       <option value="js">javascript</option>
+      <option value="ts">typescript</option>
       <option value="python">python</option>
       <option value="css">css</option>
       <option value="html">html</option>
       <option value="java">java</option>
+      <option value="kotlin">kotlin</option>
       <option value="c">c / c++</option>
       <option value="rust">rust</option>
       <option value="go">go</option>
       <option value="ruby">ruby</option>
       <option value="php">php</option>
       <option value="swift">swift</option>
+      <option value="sh">shell / bash</option>
+      <option value="sql">sql</option>
+      <option value="yaml">yaml</option>
+      <option value="json">json</option>
+      <option value="lua">lua</option>
+      <option value="dart">dart</option>
+      <option value="scala">scala</option>
     </select>
   </div>
 </header>
@@ -424,6 +433,12 @@
 <div class="level-desc-bar">
   <span class="arrow">›</span>
   <span id="levelDescText">Removes blank lines and normalises operator spacing — keeps comments and indentation intact.</span>
+</div>
+
+<!-- ─── Warning bar ─────────────────────────────────────── -->
+<div class="warning-bar" id="warningBar">
+  <span class="warning-icon">⚠</span>
+  <span id="warningText"></span>
 </div>
 
 <!-- ─── Editor panels ─────────────────────────────────── -->
@@ -472,102 +487,254 @@
 <div class="copy-flash" id="copyFlash">copied!</div>
 
 <script>
+// ── Levels ─────────────────────────────────────────────
 const LEVELS = [
   {
-    desc: "Removes blank lines and normalises operator spacing, keeps comments and indentation intact.",
+    desc: "Removes blank lines and normalises operator spacing while keeping comments and indentation intact.",
     removeComments: false, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false
   },
   {
-    desc: "Strips comments and blank lines, normalises spacing. Indentation is preserved.",
+    desc: "Strips comments and blank lines, normalises spacing and preserves indentation.",
     removeComments: true, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false
   },
   {
-    desc: "Removes comments, blank lines and indentation entirely, minimal whitespace.",
+    desc: "Removes comments, blank lines and indentation entirely while retaining minimal whitespace.",
     removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: false
   },
   {
-    desc: "Maximum compression, code as one dense line with no spaces.",
+    desc: "Smallest possible code, with no comments, blank lines, indentation or unnecessary whitespace.",
     removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: true
   }
 ];
 
+// Languages where removing indentation/newlines BREAKS syntax
+const INDENT_SENSITIVE  = new Set(['python', 'yaml', 'sh', 'makefile']);
+const NEWLINE_SENSITIVE = new Set(['python', 'yaml', 'sh', 'makefile', 'sql']);
+// Languages where operator-spacing normalization should be skipped entirely
+const NO_OP_FIX = new Set(['html', 'css', 'yaml', 'json', 'sql', 'sh', 'lua']);
+
 const LANG_NAMES = {
-  python:'python', js:'javascript', css:'css', html:'html',
-  java:'java', c:'c/c++', rust:'rust', go:'go',
-  ruby:'ruby', php:'php', swift:'swift', text:'text'
+  python:'python', js:'javascript', ts:'typescript', css:'css', html:'html',
+  java:'java', kotlin:'kotlin', c:'c/c++', rust:'rust', go:'go',
+  ruby:'ruby', php:'php', swift:'swift', sh:'shell/bash',
+  sql:'sql', yaml:'yaml', json:'json', lua:'lua', dart:'dart', scala:'scala', text:'text'
 };
 
 let currentLevel = 0;
 let userOpts = { removeComments: false, removeIndent: false, removeBlankLines: true, fixOperators: true };
 
-// ── Language detection ─────────────────────────────────
+// ── Language detection ────────────────────────────────
 function detectLang(code) {
   if (!code.trim()) return null;
-  const s = {python:0,js:0,css:0,html:0,java:0,c:0,rust:0,go:0,ruby:0,php:0,swift:0};
-  if (/def\s+\w+\s*\(|import\s+\w+|from\s+\w+\s+import|print\s*\(|:\s*$|^\s*#\s*\w/m.test(code)) s.python+=3;
-  if (/elif\s+|lambda\s+|__name__|\.format\(|f['"]/.test(code)) s.python+=2;
-  if (/function\s+\w+|const\s+|let\s+|var\s+|=>\s*{|require\(|module\.exports|console\.log/.test(code)) s.js+=3;
-  if (/document\.|window\.|async\s+function|\.then\(|Promise\./.test(code)) s.js+=2;
-  if (/\{[\s\S]*?:\s*[\w#"'.]+\s*;|@media|@keyframes|\.[\w-]+\s*\{/.test(code)) s.css+=4;
-  if (/<html|<div|<span|<body|<head|<!DOCTYPE/i.test(code)) s.html+=4;
-  if (/public\s+(static\s+)?(?:void|class|int|String)|System\.out|import\s+java\./.test(code)) s.java+=4;
-  if (/#include\s+<|printf\s*\(|int\s+main\s*\(|std::/.test(code)) s.c+=4;
-  if (/fn\s+\w+|let\s+mut\s|impl\s+\w+|use\s+std::|println!/.test(code)) s.rust+=4;
-  if (/func\s+\w+.*{|package\s+main|fmt\.Println|:=\s/.test(code)) s.go+=4;
-  if (/def\s+\w+|puts\s+|^\s*end\s*$|\.each\s*\{|attr_accessor/m.test(code)) s.ruby+=3;
-  if (/<\?php|echo\s+|function\s+\w+\s*\(|\$\w+\s*=/.test(code)) s.php+=4;
-  if (/var\s+\w+:|let\s+\w+:|func\s+\w+.*->|UIViewController|print\(/.test(code)) s.swift+=4;
-  let best=null, top=0;
-  for (const [l,v] of Object.entries(s)) if (v>top) { top=v; best=l; }
-  return top>0 ? best : 'text';
-}
-
-// ── Cleaning logic ─────────────────────────────────────
-function stripComments(code, lang) {
-  if (lang==='python'||lang==='ruby') return code.replace(/(?<!['"#])#[^\n]*/g,'');
-  if (lang==='html') return code.replace(/<!--[\s\S]*?-->/g,'');
-  if (lang==='css') return code.replace(/\/\*[\s\S]*?\*\//g,'');
-  return code.replace(/\/\/[^\n]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'');
-}
-
-function fixOps(code, lang) {
-  if (lang==='html'||lang==='css') return code;
-  return code
-    .replace(/([^=!<>])=([^>=])/g,'$1 = $2')
-    .replace(/,([^\s\n])/g,', $1')
-    .replace(/[ \t]+/g,' ');
-}
-
-function cleanCode(code, level, lang) {
-  const opts = {
-    removeComments: level.removeComments || userOpts.removeComments,
-    removeIndent:   level.removeIndent   || userOpts.removeIndent,
-    removeBlankLines: level.removeBlankLines || userOpts.removeBlankLines,
-    fixOperators:   level.fixOperators   || userOpts.fixOperators,
-    collapseAll:    level.collapseAll
+  const s = {
+    python:0, js:0, ts:0, css:0, html:0, java:0, kotlin:0,
+    c:0, rust:0, go:0, ruby:0, php:0, swift:0,
+    sh:0, sql:0, yaml:0, json:0, lua:0, dart:0, scala:0
   };
 
+  if (/def\s+\w+\s*\(|from\s+\w+\s+import|print\s*\(/.test(code)) s.python += 3;
+  if (/elif\s+|lambda\s+|__name__|\.format\(|f['"]|^\s*@\w+/m.test(code)) s.python += 2;
+  if (/:\s*$|^\s{4}/m.test(code) && /def |class |if |for |while /.test(code)) s.python += 1;
+
+  if (/:\s*(string|number|boolean|void|any|never|unknown)\b|interface\s+\w+|type\s+\w+\s*=|as\s+\w+/.test(code)) s.ts += 4;
+  if (/enum\s+\w+|readonly\s+|implements\s+\w+|declare\s+/.test(code)) s.ts += 3;
+
+  if (/function\s+\w+|const\s+|let\s+|var\s+|=>\s*{|require\(|console\.log/.test(code)) s.js += 3;
+  if (/document\.|window\.|async\s+function|\.then\(|Promise\./.test(code)) s.js += 2;
+
+  if (/@media|@keyframes|\.\[\w-\]+\s*\{|#[\w-]+\s*\{/.test(code)) s.css += 4;
+  if (/:\s*[\w#"'.]+\s*;/.test(code)) s.css += 2;
+
+  if (/<html|<div|<span|<body|<head|<!DOCTYPE/i.test(code)) s.html += 4;
+  if (/<\/\w+>/.test(code)) s.html += 2;
+
+  if (/public\s+(static\s+)?(?:void|class|int|String)|System\.out|import\s+java\./.test(code)) s.java += 4;
+  if (/@Override|@SuppressWarnings|extends\s+\w+/.test(code)) s.java += 2;
+
+  if (/fun\s+\w+\s*\(|val\s+\w+|println\(|data\s+class|object\s+\w+/.test(code)) s.kotlin += 4;
+  if (/companion\s+object|suspend\s+fun|when\s*\(|\.let\s*\{/.test(code)) s.kotlin += 3;
+
+  if (/#include\s+<|printf\s*\(|int\s+main\s*\(/.test(code)) s.c += 4;
+  if (/std::|cout\s*<<|cin\s*>>|nullptr/.test(code)) s.c += 2;
+
+  if (/fn\s+\w+|let\s+mut\s|impl\s+\w+|use\s+std::|println!/.test(code)) s.rust += 4;
+  if (/match\s+\w+|Some\(|None\b|Result<|unwrap\(\)/.test(code)) s.rust += 3;
+
+  if (/func\s+\w+.*\{|package\s+main|fmt\.Println|:=\s/.test(code)) s.go += 4;
+  if (/goroutine|chan\s+\w+|defer\s+/.test(code)) s.go += 2;
+
+  if (/def\s+\w+|puts\s+|^\s*end\s*$|\.each\s*\{|attr_accessor/m.test(code)) s.ruby += 3;
+  if (/do\s*\|.*\||require\s+'|gem\s+'|\.map\s*\{/.test(code)) s.ruby += 2;
+
+  if (/<\?php|\$\w+\s*=|echo\s+/.test(code)) s.php += 4;
+  if (/->\s*\w+\(|array\s*\(|\$_GET|\$_POST/.test(code)) s.php += 2;
+
+  if (/func\s+\w+.*->|UIViewController|@IBOutlet|@IBAction/.test(code)) s.swift += 4;
+  if (/guard\s+let|if\s+let|@State|@Binding/.test(code)) s.swift += 3;
+
+  if (/\$\{?\w+\}?|fi\b|done\b|then\b/.test(code)) s.sh += 3;
+  if (/^#!\/bin\/(bash|sh|zsh)/m.test(code)) s.sh += 5;
+
+  if (/SELECT\s+.+FROM|INSERT\s+INTO|CREATE\s+TABLE|DROP\s+TABLE/i.test(code)) s.sql += 5;
+  if (/WHERE\s+|GROUP\s+BY|ORDER\s+BY|JOIN\s+/i.test(code)) s.sql += 2;
+
+  if (/^[\w-]+:\s*$/m.test(code) && /^\s+-\s+\w+/m.test(code)) s.yaml += 4;
+  if (/^---\s*$/m.test(code) || /^\s{2,}\w+:\s+\S/m.test(code)) s.yaml += 3;
+
+  if (/^\s*[\[{]/.test(code.trim()) && /"\w+":\s*("?[\d\[{]|true|false|null)/.test(code)) s.json += 5;
+
+  if (/function\s+\w+\s*\(|local\s+\w+\s*=|then\b|end\b/.test(code)) s.lua += 3;
+  if (/--.*$|ipairs\(|pairs\(|\.\./m.test(code)) s.lua += 2;
+
+  if (/void\s+main\s*\(|import\s+'package:|Widget\s+build|StatelessWidget/.test(code)) s.dart += 4;
+  if (/final\s+\w+|List<|Map<|Future</.test(code) && s.dart > 0) s.dart += 2;
+
+  if (/def\s+\w+.*:\s*\w+\s*=|object\s+\w+\s+extends|case\s+class/.test(code)) s.scala += 4;
+  if (/println\(|List\(|Some\(|None\b/.test(code) && s.scala > 2) s.scala += 2;
+
+  let best = null, top = 0;
+  for (const [l, v] of Object.entries(s)) if (v > top) { top = v; best = l; }
+  return top > 0 ? best : 'text';
+}
+
+// ── Comment stripping — language aware ────────────────
+function stripComments(code, lang) {
+  // Shell: preserve shebang line
+  if (lang === 'sh') {
+    return code.split('\n').map((l, i) => {
+      if (i === 0 && l.startsWith('#!')) return l;
+      return l.replace(/#[^\n]*/g, '');
+    }).join('\n');
+  }
+  // Hash-style line comments
+  if (['python', 'ruby', 'yaml'].includes(lang))
+    return code.replace(/(?<!['"#])#[^\n]*/g, '');
+  // HTML
+  if (lang === 'html') return code.replace(/<!--[\s\S]*?-->/g, '');
+  // CSS
+  if (lang === 'css') return code.replace(/\/\*[\s\S]*?\*\//g, '');
+  // Lua: -- and --[[ block ]]
+  if (lang === 'lua')
+    return code.replace(/--\[\[[\s\S]*?\]\]/g, '').replace(/--[^\n]*/g, '');
+  // PHP: //, /* */, and #
+  if (lang === 'php')
+    return code.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/#[^\n]*/g, '');
+  // SQL: -- and /* */
+  if (lang === 'sql')
+    return code.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  // JSON has no comments
+  if (lang === 'json') return code;
+  // Default: C-style — JS, TS, Java, Kotlin, C, C++, Rust, Go, Swift, Dart, Scala
+  return code.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+// ── Operator spacing — language aware ─────────────────
+function fixOps(line, lang) {
+  if (NO_OP_FIX.has(lang)) return line;
+
+  // Python: only fix comma spacing, collapse spaces — preserve all operator symbols
+  if (lang === 'python')
+    return line.replace(/,([^\s\n])/g, ', $1').replace(/[ \t]+/g, ' ');
+
+  // Ruby: preserve =>, <<, ->
+  if (lang === 'ruby')
+    return line.replace(/,([^\s])/g, ', $1').replace(/[ \t]+/g, ' ');
+
+  // Rust: preserve ->, =>, ::, &mut, lifetimes, << >>
+  if (lang === 'rust')
+    return line.replace(/,([^\s])/g, ', $1').replace(/[ \t]+/g, ' ');
+
+  // Go: preserve :=, <-
+  if (lang === 'go')
+    return line.replace(/,([^\s])/g, ', $1').replace(/[ \t]+/g, ' ');
+
+  // Swift / Kotlin / Scala / Dart: preserve -> and =>
+  if (['swift', 'kotlin', 'scala', 'dart'].includes(lang))
+    return line.replace(/,([^\s])/g, ', $1').replace(/[ \t]+/g, ' ');
+
+  // C/C++: preserve ->, ::, <<, >>
+  if (lang === 'c')
+    return line.replace(/,([^\s])/g, ', $1').replace(/[ \t]+/g, ' ');
+
+  // PHP: preserve -> and =>
+  if (lang === 'php')
+    return line.replace(/,([^\s])/g, ', $1').replace(/[ \t]+/g, ' ');
+
+  // Java: safe to fix = (excluding ==, !=, <=, >=, ->)
+  if (lang === 'java')
+    return line
+      .replace(/([^=!<>\-])=([^>=])/g, '$1 = $2')
+      .replace(/,([^\s])/g, ', $1')
+      .replace(/[ \t]+/g, ' ');
+
+  // JS / TS: most aggressive — safe here
+  if (lang === 'js' || lang === 'ts')
+    return line
+      .replace(/([^=!<>])=([^>=])/g, '$1 = $2')
+      .replace(/,([^\s\n])/g, ', $1')
+      .replace(/[ \t]+/g, ' ');
+
+  // Generic fallback
+  return line.replace(/,([^\s])/g, ', $1').replace(/[ \t]+/g, ' ');
+}
+
+// ── Warning logic ─────────────────────────────────────
+function getWarning(lang, opts) {
+  const willRemoveIndent = opts.removeIndent || opts.collapseAll;
+  const willCollapse     = opts.collapseAll;
+  if (INDENT_SENSITIVE.has(lang) && willRemoveIndent)
+    return (LANG_NAMES[lang]||lang) + " uses indentation as syntax — removing it will produce invalid code.";
+  if (NEWLINE_SENSITIVE.has(lang) && willCollapse)
+    return (LANG_NAMES[lang]||lang) + " is newline-sensitive — collapsing to one line will break the code.";
+  if (lang === 'json' && opts.removeComments)
+    return "JSON has no comments — the comments toggle has no effect here.";
+  return null;
+}
+
+// ── Main clean ────────────────────────────────────────
+function cleanCode(code, level, lang) {
+  const opts = {
+    removeComments:   level.removeComments   || userOpts.removeComments,
+    removeIndent:     level.removeIndent     || userOpts.removeIndent,
+    removeBlankLines: level.removeBlankLines || userOpts.removeBlankLines,
+    fixOperators:     level.fixOperators     || userOpts.fixOperators,
+    collapseAll:      level.collapseAll
+  };
   let result = code;
   if (opts.removeComments) result = stripComments(result, lang);
-
   let lines = result.split('\n');
-  lines = lines.map(l => {
-    let s = opts.removeIndent ? l.trimStart() : l;
-    return s.trimEnd();
-  });
+  lines = lines.map(l => (opts.removeIndent ? l.trimStart() : l).trimEnd());
   if (opts.removeBlankLines) lines = lines.filter(l => l.trim() !== '');
   if (opts.fixOperators) lines = lines.map(l => fixOps(l, lang));
-
   result = lines.join(opts.collapseAll ? ' ' : '\n');
-  if (opts.collapseAll) result = result.replace(/\s+/g,' ').trim();
+  if (opts.collapseAll) result = result.replace(/\s+/g, ' ').trim();
   return result;
 }
 
-// ── UI helpers ─────────────────────────────────────────
+// ── UI helpers ────────────────────────────────────────
 function getLang() {
   const ov = document.getElementById('langOverride').value;
   if (ov !== 'auto') return ov;
   return detectLang(document.getElementById('inputCode').value) || 'text';
+}
+
+function getEffectiveOpts() {
+  const level = LEVELS[currentLevel];
+  return {
+    removeComments:   level.removeComments   || userOpts.removeComments,
+    removeIndent:     level.removeIndent     || userOpts.removeIndent,
+    removeBlankLines: level.removeBlankLines || userOpts.removeBlankLines,
+    fixOperators:     level.fixOperators     || userOpts.fixOperators,
+    collapseAll:      level.collapseAll
+  };
+}
+
+function updateWarning(lang) {
+  const msg = getWarning(lang, getEffectiveOpts());
+  const bar = document.getElementById('warningBar');
+  const txt = document.getElementById('warningText');
+  if (msg) { txt.textContent = msg; bar.classList.add('show'); }
+  else { bar.classList.remove('show'); }
 }
 
 function updateInputStats() {
@@ -576,32 +743,31 @@ function updateInputStats() {
   document.getElementById('inChars').textContent = code.length;
   const lang = getLang();
   document.getElementById('detectedLang').textContent = LANG_NAMES[lang] || lang;
+  updateWarning(lang);
 }
 
 function runClean() {
   const code = document.getElementById('inputCode').value;
   if (!code.trim()) return;
   const lang = getLang();
-  const level = LEVELS[currentLevel];
-  const cleaned = cleanCode(code, level, lang);
+  updateWarning(lang);
+  const cleaned = cleanCode(code, LEVELS[currentLevel], lang);
   document.getElementById('outputCode').value = cleaned;
-  const ol = cleaned.split('\n').length;
   const oc = cleaned.length;
-  document.getElementById('outLines').textContent = ol;
+  document.getElementById('outLines').textContent = cleaned.split('\n').length;
   document.getElementById('outChars').textContent = oc;
-  const ic = code.length;
-  if (ic > 0) {
-    const pct = Math.round((1 - oc/ic)*100);
+  if (code.length > 0) {
+    const pct = Math.round((1 - oc / code.length) * 100);
     const chip = document.getElementById('reductionChip');
     chip.textContent = `↓ ${pct}% smaller`;
     chip.classList.add('show');
-    document.getElementById('statusMsg').textContent = `cleaned with level: ${['readable','compact','minified','nuclear'][currentLevel]}`;
+    document.getElementById('statusMsg').textContent =
+      `cleaned with level: ${['readable','compact','minified','nuclear'][currentLevel]}`;
   }
 }
 
 function clearAll() {
-  document.getElementById('inputCode').value = '';
-  document.getElementById('outputCode').value = '';
+  ['inputCode','outputCode'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('inLines').textContent = '0';
   document.getElementById('inChars').textContent = '0';
   document.getElementById('outLines').textContent = '—';
@@ -609,6 +775,7 @@ function clearAll() {
   document.getElementById('reductionChip').classList.remove('show');
   document.getElementById('statusMsg').textContent = 'paste code to get started';
   document.getElementById('detectedLang').textContent = '—';
+  document.getElementById('warningBar').classList.remove('show');
 }
 
 function copyOutput() {
@@ -621,7 +788,7 @@ function copyOutput() {
   });
 }
 
-// ── Level tabs ─────────────────────────────────────────
+// ── Level tabs ────────────────────────────────────────
 document.querySelectorAll('.level-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
@@ -629,39 +796,37 @@ document.querySelectorAll('.level-btn').forEach(btn => {
     currentLevel = parseInt(btn.dataset.level);
     document.getElementById('levelDescText').textContent = LEVELS[currentLevel].desc;
     syncTogglesFromLevel();
+    updateWarning(getLang());
     if (document.getElementById('inputCode').value.trim()) runClean();
   });
 });
 
 function syncTogglesFromLevel() {
   const l = LEVELS[currentLevel];
-  setToggle('toggleComments', !l.removeComments);
-  setToggle('toggleIndent',   !l.removeIndent);
-  setToggle('toggleBlankLines', l.removeBlankLines);
-  setToggle('toggleOperators',  l.fixOperators);
+  setToggle('toggleComments',   !l.removeComments);
+  setToggle('toggleIndent',     !l.removeIndent);
+  setToggle('toggleBlankLines',  l.removeBlankLines);
+  setToggle('toggleOperators',   l.fixOperators);
 }
 
-// ── Toggle pills ───────────────────────────────────────
 function setToggle(id, on) {
-  const el = document.getElementById(id);
-  on ? el.classList.add('on') : el.classList.remove('on');
+  document.getElementById(id).classList.toggle('on', on);
 }
 
 function wireToggle(id, optKey, invert) {
   document.getElementById(id).addEventListener('click', () => {
     const el = document.getElementById(id);
     el.classList.toggle('on');
-    const isOn = el.classList.contains('on');
-    userOpts[optKey] = invert ? !isOn : isOn;
+    userOpts[optKey] = invert ? !el.classList.contains('on') : el.classList.contains('on');
+    updateWarning(getLang());
     if (document.getElementById('inputCode').value.trim()) runClean();
   });
 }
-wireToggle('toggleComments',  'removeComments', true);
-wireToggle('toggleIndent',    'removeIndent',   true);
-wireToggle('toggleBlankLines','removeBlankLines', false);
-wireToggle('toggleOperators', 'fixOperators',   false);
+wireToggle('toggleComments',   'removeComments',   true);
+wireToggle('toggleIndent',     'removeIndent',     true);
+wireToggle('toggleBlankLines', 'removeBlankLines', false);
+wireToggle('toggleOperators',  'fixOperators',     false);
 
-// ── Input listener ─────────────────────────────────────
 document.getElementById('inputCode').addEventListener('input', () => {
   updateInputStats();
   if (document.getElementById('inputCode').value.trim()) runClean();
@@ -671,16 +836,12 @@ document.getElementById('langOverride').addEventListener('change', () => {
   if (document.getElementById('inputCode').value.trim()) runClean();
 });
 
-// Tab key in textarea
 document.getElementById('inputCode').addEventListener('keydown', e => {
   if (e.key === 'Tab') {
     e.preventDefault();
-    const ta = e.target;
-    const s = ta.selectionStart, end = ta.selectionEnd;
-    ta.value = ta.value.substring(0,s) + '  ' + ta.value.substring(end);
+    const ta = e.target, s = ta.selectionStart;
+    ta.value = ta.value.substring(0, s) + '  ' + ta.value.substring(ta.selectionEnd);
     ta.selectionStart = ta.selectionEnd = s + 2;
   }
 });
-</script>
-</body>
-</html>
+</script>\n</body>\n</html>
