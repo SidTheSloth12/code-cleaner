@@ -474,19 +474,19 @@
 <script>
 const LEVELS = [
   {
-    desc: "Removes blank lines and normalises operator spacing — keeps comments and indentation intact.",
+    desc: "Removes blank lines and normalises operator spacing, keeps comments and indentation intact.",
     removeComments: false, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false
   },
   {
-    desc: "Strips comments and blank lines, normalises spacing. Indentation is preserved — still readable.",
+    desc: "Strips comments and blank lines, normalises spacing. Indentation is preserved.",
     removeComments: true, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false
   },
   {
-    desc: "Removes comments, blank lines and indentation entirely. Minimal whitespace, not easily readable.",
+    desc: "Removes comments, blank lines and indentation entirely, minimal whitespace.",
     removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: false
   },
   {
-    desc: "Nuclear option — everything goes. One dense line, no spaces, no structure. Unreadably small.",
+    desc: "Maximum compression, code as one dense line with no spaces.",
     removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: true
   }
 ];
