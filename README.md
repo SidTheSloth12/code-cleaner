@@ -89,7 +89,7 @@ open code_cleaner_tool.html
 
 ### Deployment
 
-Because it is a static page, it can be hosted for free on **GitHub Pages**, **Vercel**, or **Netlify** by serving `code_cleaner_tool.html` as the entry index file.
+Hosted on **GitHub Pages** : https://sidthesloth12.github.io/code-cleaner/
 
 ---
 
