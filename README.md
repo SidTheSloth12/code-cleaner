@@ -29,7 +29,7 @@ The tool provides four preset processing levels to choose from:
 
 ---
 
-## 🛠️ Technical Implementation
+## Technical Implementation
 
 ### 1. Heuristic Language Detection
 
