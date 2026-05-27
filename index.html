@@ -427,12 +427,15 @@
   <div class="toggle-pill on" id="toggleOperators">
     <span class="pip"></span>fix spacing
   </div>
+  <div class="toggle-pill on" id="toggleEmojis">
+    <span class="pip"></span>emojis
+  </div>
 </div>
 
 <!-- ─── Level description ─────────────────────────────── -->
 <div class="level-desc-bar">
   <span class="arrow">›</span>
-  <span id="levelDescText">Removes blank lines and normalises operator spacing — keeps comments and indentation intact.</span>
+  <span id="levelDescText">Removes blank lines, normalises operator spacing, and strips emojis — keeps comments and indentation intact.</span>
 </div>
 
 <!-- ─── Warning bar ─────────────────────────────────────── -->
@@ -490,20 +493,20 @@
 // ── Levels ─────────────────────────────────────────────
 const LEVELS = [
   {
-    desc: "Removes blank lines and normalises operator spacing while keeping comments and indentation intact.",
-    removeComments: false, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false
+    desc: "Removes blank lines, normalises operator spacing, and strips emojis while keeping comments and indentation intact.",
+    removeComments: false, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false, removeEmojis: true
   },
   {
-    desc: "Strips comments and blank lines, normalises spacing and preserves indentation.",
-    removeComments: true, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false
+    desc: "Strips comments, blank lines, and emojis, normalises spacing and preserves indentation.",
+    removeComments: true, removeIndent: false, removeBlankLines: true, fixOperators: true, collapseAll: false, removeEmojis: true
   },
   {
-    desc: "Removes comments, blank lines and indentation entirely while retaining minimal whitespace.",
-    removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: false
+    desc: "Removes comments, blank lines, indentation, and emojis entirely while retaining minimal whitespace.",
+    removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: false, removeEmojis: true
   },
   {
-    desc: "Smallest possible code, with no comments, blank lines, indentation or unnecessary whitespace.",
-    removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: true
+    desc: "Smallest possible code, with no comments, blank lines, indentation, emojis, or unnecessary whitespace.",
+    removeComments: true, removeIndent: true, removeBlankLines: true, fixOperators: true, collapseAll: true, removeEmojis: true
   }
 ];
 
@@ -521,7 +524,7 @@ const LANG_NAMES = {
 };
 
 let currentLevel = 0;
-let userOpts = { removeComments: false, removeIndent: false, removeBlankLines: true, fixOperators: true };
+let userOpts = { removeComments: false, removeIndent: false, removeBlankLines: true, fixOperators: true, removeEmojis: true };
 
 // ── Language detection ────────────────────────────────
 function detectLang(code) {
@@ -698,9 +701,13 @@ function cleanCode(code, level, lang) {
     removeIndent:     level.removeIndent     || userOpts.removeIndent,
     removeBlankLines: level.removeBlankLines || userOpts.removeBlankLines,
     fixOperators:     level.fixOperators     || userOpts.fixOperators,
-    collapseAll:      level.collapseAll
+    collapseAll:      level.collapseAll,
+    removeEmojis:     level.removeEmojis     || userOpts.removeEmojis
   };
   let result = code;
+  if (opts.removeEmojis) {
+    result = result.replace(/(?![©®™])[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}\u{200d}\u{fe0f}]/gu, '');
+  }
   if (opts.removeComments) result = stripComments(result, lang);
   let lines = result.split('\n');
   lines = lines.map(l => (opts.removeIndent ? l.trimStart() : l).trimEnd());
@@ -725,7 +732,8 @@ function getEffectiveOpts() {
     removeIndent:     level.removeIndent     || userOpts.removeIndent,
     removeBlankLines: level.removeBlankLines || userOpts.removeBlankLines,
     fixOperators:     level.fixOperators     || userOpts.fixOperators,
-    collapseAll:      level.collapseAll
+    collapseAll:      level.collapseAll,
+    removeEmojis:     level.removeEmojis     || userOpts.removeEmojis
   };
 }
 
@@ -807,6 +815,7 @@ function syncTogglesFromLevel() {
   setToggle('toggleIndent',     !l.removeIndent);
   setToggle('toggleBlankLines',  l.removeBlankLines);
   setToggle('toggleOperators',   l.fixOperators);
+  setToggle('toggleEmojis',      l.removeEmojis);
 }
 
 function setToggle(id, on) {
@@ -826,6 +835,7 @@ wireToggle('toggleComments',   'removeComments',   true);
 wireToggle('toggleIndent',     'removeIndent',     true);
 wireToggle('toggleBlankLines', 'removeBlankLines', false);
 wireToggle('toggleOperators',  'fixOperators',     false);
+wireToggle('toggleEmojis',     'removeEmojis',     false);
 
 document.getElementById('inputCode').addEventListener('input', () => {
   updateInputStats();
